@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
 
-namespace Elect.Common
+namespace Elect.Loader.Common
 {
 	/// <summary>
 	/// Класс содержит статические вспомогательные методы генерации событий

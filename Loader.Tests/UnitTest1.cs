@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
@@ -6,10 +7,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Elect.DomainObjects;
 using Elect.Loader;
 using Elect.Loader.Common;
+using HtmlAgilityPack;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Elect.Loader.Tests
@@ -82,9 +85,11 @@ END", DbName);
 				_returnBytes = returnBytes;
 			}
 
-			public byte[] Download(string uri)
+			public Task<byte[]> Download(string uri, IDownloadNotifier notifier, CancellationToken cancellationToken)
 			{
-				return _returnBytes;
+				var tcs = new TaskCompletionSource<byte[]>();
+				tcs.SetResult(_returnBytes);
+				return tcs.Task;
 			}
 		}
 
@@ -138,24 +143,24 @@ END", DbName);
 			Assert.AreEqual("1;2;3", String.Join(";", new[] { reader[0], reader[1], reader[2]}));
 		}
 		
-		class Logger: IIlogger
+		class Logger: ILogger
 		{
-			public void Log(string msg)
+			public void Log(LogItem item)
 			{
-				Console.WriteLine(msg);
+				Console.WriteLine(item.Severity + ": " + item.Message);
 			}
 
-			public void Clear()
+			public ILogItemProgress LogProgress()
 			{
-				
+				return null;
 			}
 		}
 
 		RuelectViewModel createViewModel()
 		{
-			var repo = new Repository(m_connectionString);
-			repo.Downloader = new MockDownloader(new byte[10]);
 			var logger = new Logger();
+			var repo = new Repository(m_connectionString, logger);
+			repo.Downloader = new MockDownloader(new byte[10]);
 			var viewModel = new RuelectViewModel(logger);
 			viewModel.Repository = repo;
 			return viewModel;
@@ -339,16 +344,86 @@ END", DbName);
 			var viewModel = new KartaitogovViewModel(new Logger());
 			//string resourceName = "Loader.Tests.diff.htm";
 			//Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-			var fileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Kartaitogov", "diff.htm");
-			byte[] webpageContent = Encoding.UTF8.GetBytes(File.ReadAllText(fileName));
+			var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Kartaitogov", "diff.htm");
+			//byte[] webpageContent = Encoding.UTF8.GetBytes(File.ReadAllText(filePath));
 
+/*
 			viewModel.Downloader = new MockDownloader(webpageContent);
 
 			var task = viewModel.downloadImages();
 			Assert.IsTrue(task.Wait(TimeSpan.FromSeconds(10)));
 			Assert.IsNull(viewModel.LastError, "Error occured: " + viewModel.LastError);
 
+*/
 
+			HtmlDocument htmlDoc = new HtmlDocument();
+			Encoding encoding = htmlDoc.DetectEncoding(filePath) ?? Encoding.UTF8;
+			htmlDoc.Load(filePath, encoding);
+
+			var reUikNumber = new System.Text.RegularExpressions.Regex(@"\d+");
+			using (var con = new SqlConnection("Data Source=.;Initial Catalog = elect;Integrated Security=True"))
+			{
+				con.Open();
+				var cmdRegion = con.CreateCommand();
+				cmdRegion.CommandText = "select ObjectID from Region where name = @pName";
+				var sqlParamRegName = new SqlParameter("pName", SqlDbType.VarChar);
+				cmdRegion.Parameters.Add(sqlParamRegName);
+
+				var cmdComission = con.CreateCommand();
+				cmdComission.CommandText = "select ObjectID from Comission where Region = @pRegion and [Number] = @pNumber";
+				var sqlParamComNum = new SqlParameter("pNumber", SqlDbType.Int);
+				cmdComission.Parameters.Add(sqlParamComNum);
+				var sqlParamRegId = new SqlParameter("pRegion", SqlDbType.UniqueIdentifier);
+				cmdComission.Parameters.Add(sqlParamRegId);
+
+				string regionName = null;
+				Guid regionId = Guid.Empty;
+				foreach (HtmlNode headUik in htmlDoc.DocumentNode.SelectNodes("//h3[@class='uik']"))
+				{
+					var regionNode = headUik.SelectSingleNode("preceding-sibling::h2[@class='oblast']");
+					var uikText = headUik.InnerText;
+					if (regionNode != null)
+					{
+						var match = reUikNumber.Match(uikText);
+						if (!match.Success)
+						{
+							Console.WriteLine("ERROR: Can't parse UIK number: " + uikText);
+						}
+						else
+						{
+							if (regionName != regionNode.InnerText)
+							{
+								regionName = regionNode.InnerText;
+								sqlParamRegName.Value = regionName;
+								var regionIdRaw = cmdRegion.ExecuteScalar();
+								if (regionIdRaw != null)
+									regionId = (Guid)regionIdRaw;
+								else
+								{
+									regionId = Guid.Empty;
+									Console.WriteLine("WARN: Can't find in DB a region with name: " + regionName);
+								}
+							}
+
+							sqlParamRegId.Value = regionId;
+							int comissionNum = Int32.Parse(match.Value);
+							sqlParamComNum.Value = comissionNum;
+							var comissionIdRaw = cmdComission.ExecuteScalar();
+							Guid comissionId;
+							if (comissionIdRaw != null)
+								comissionId = (Guid)comissionIdRaw;
+							else
+								comissionId = Guid.Empty;
+							//Console.WriteLine(regionNode.InnerText + " : " + uikText.Substring(uikText.IndexOf('\n', 0, 2)));
+							Console.WriteLine(regionName + "(" + regionId + ")" + " / " + comissionNum + "(" + comissionId + ")");
+						}
+					}
+					else
+					{
+						Console.WriteLine("ERROR: Can't find region node!");
+					}
+				}
+			}
 		}
 	}
 }

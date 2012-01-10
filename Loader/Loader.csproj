@@ -36,6 +36,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="HtmlAgilityPack">
+      <HintPath>..\Libs\HtmlAgilityPack.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
@@ -56,13 +59,29 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="CsvLoaderBase.cs" />
+    <Compile Include="DomainObjects\Candidate.cs" />
+    <Compile Include="DomainObjects\Comission.cs" />
+    <Compile Include="DomainObjects\Poll.cs" />
+    <Compile Include="DomainObjects\PollProtocol.cs" />
+    <Compile Include="DomainObjects\PollProtocolImage.cs" />
+    <Compile Include="DomainObjects\Region.cs" />
+    <Compile Include="DomainObjects\ResultProvider.cs" />
+    <Compile Include="DownloadNotifier.cs" />
     <Compile Include="FileDownloader.cs" />
-    <Compile Include="IIlogger.cs" />
+    <Compile Include="ILogger.cs" />
+    <Compile Include="ImportViewModelBase.cs" />
+    <Compile Include="IProtocolLoader.cs" />
     <Compile Include="IRegionResolver.cs" />
+    <Compile Include="KartaitogovCsvLoader.cs" />
+    <Compile Include="KartaitogovViewModel.cs" />
+    <Compile Include="KartaitogovWebLoader.cs" />
     <Compile Include="MainViewModel.cs" />
+    <Compile Include="ProtocolSaveOption.cs" />
     <Compile Include="Repository.cs" />
     <Compile Include="RuelectCsvLoader.cs" />
     <Compile Include="RuelectViewModel.cs" />
+    <Compile Include="Support\EnumDisplayer.cs" />
     <Compile Include="Support\Scroller.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

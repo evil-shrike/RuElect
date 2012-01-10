@@ -1,8 +1,7 @@
 ﻿using System.ComponentModel;
-using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Elect.Common
+namespace Elect.Loader.Common
 {
 	/// <summary>
 	/// Базовый класс для объектов, реализующих INotifyPropertyChanged.

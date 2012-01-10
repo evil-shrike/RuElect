@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -14,7 +16,7 @@ namespace Elect.Loader
 	{
 		private const string EventLogSourceName = "Elect Protocol Loader";
 
-		private string ConnectionString; // = "Data Source=.;Initial Catalog=elect;Integrated Security=True";
+		private string m_connectionString; // = "Data Source=.;Initial Catalog=elect;Integrated Security=True";
 
 		protected override void OnStartup(StartupEventArgs e)
 		{
@@ -22,11 +24,11 @@ namespace Elect.Loader
 
 			base.OnStartup(e);
 
-			ConnectionString = ConfigurationManager.ConnectionStrings["default"].ConnectionString;
+			m_connectionString = ConfigurationManager.ConnectionStrings["default"].ConnectionString;
 
 			var window = new MainWindow();
-			var repository = new Repository(ConnectionString);
 			var mainViewModel = new MainViewModel();
+			var repository = new Repository(m_connectionString, mainViewModel);
 			var vmRuelect = new RuelectViewModel(mainViewModel)
 								{
 									Repository = repository
@@ -41,7 +43,28 @@ namespace Elect.Loader
 			((TabItem)window.tabs.Items[1]).DataContext = vmKartaitogov;
 
 			Application.Current.MainWindow = window;
+			runInitialChecks(mainViewModel);
 			window.Show();
+		}
+
+		private void runInitialChecks(ILogger logger)
+		{
+			Task.Factory.StartNew(
+				() =>
+					{
+						using (var con = new SqlConnection(m_connectionString))
+						{
+							try
+							{
+								con.Open();
+								con.Close();
+							}
+							catch (Exception ex)
+							{
+								logger.Log("Cannot open DB, please check connection string in Loader.exe.config. Exception: " + ex);
+							}
+						}
+					});
 		}
 
 		private void onAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)

@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using Elect.DomainObjects;
 
 namespace Elect.Loader
@@ -12,22 +13,19 @@ namespace Elect.Loader
 	{
 		const int ProtocolCommonValuesCount = 18;
 		private readonly string m_connectionString;
+		private readonly ILogger m_logger;
+		private bool m_bInitialized;
 		private readonly Dictionary<Guid, Region> m_regions = new Dictionary<Guid, Region>();
 		private readonly Dictionary<string, Guid> m_regionsNameToId = new Dictionary<string, Guid>();
 		List<Comission> m_comissions;
-		private bool m_bInitialized;
 
-		public Repository(string connectionString)
+		public Repository(string connectionString, ILogger logger)
 		{
 			m_connectionString = connectionString;
+			m_logger = logger;
 		}
-		
-		public IDownloader Downloader { get; set; }
 
-		public IDictionary<string, Guid> GetRegions()
-		{
-			return m_regionsNameToId;
-		}
+		public IDownloader Downloader { get; set; }
 
 		public void Initialize()
 		{
@@ -185,7 +183,7 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 			return null;
 		}
 
-		public void SaveProtocol(PollProtocol protocol)
+		public bool SaveProtocol(PollProtocol protocol, ProtocolSaveOption options)
 		{
 			ensureInitialized();
 
@@ -200,30 +198,41 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 
 				// create region if needed
 				if (protocol.Region.IsNew)
-					createRegion(protocol.Region);
+				{
+					switch(options.UnknownRegionAction)
+					{
+						case UnknownRegionActions.Create:
+							createRegion(protocol.Region);
+							m_logger.Log(String.Format("\tCreated new region: '{0}' - id='{1}'", protocol.Region.Name, protocol.Region.Id));
+							Debug.Assert(!protocol.Region.IsNew);
+							break;
+						case UnknownRegionActions.Ignore:
+						case UnknownRegionActions.Stop:
+							m_logger.Log(String.Format("\tNot existed region '{0}' was ignored", protocol.Region.Name));
+							return false;
+						default:
+							throw new ArgumentOutOfRangeException();
+					}
+				}
 
 				// create comission if needed
 				Guid comissionId;
 				if (comission == null)
 				{
 					// we need to create the protocol's comission as it doesn't exist
-					cmd = con.CreateCommand();
-					cmd.CommandText = "insert into Comission (ObjectID, Region, [Number]) values (@p1, @p2, @p3)";
-					// ObjectID
-					sqlParam = new SqlParameter("p1", SqlDbType.UniqueIdentifier);
-					comissionId = Guid.NewGuid();
-					sqlParam.Value = comissionId;
-					cmd.Parameters.Add(sqlParam);
-					// Region
-					sqlParam = new SqlParameter("p2", SqlDbType.UniqueIdentifier);
-					sqlParam.Value = protocol.Region.Id;
-					cmd.Parameters.Add(sqlParam);
-					// Number
-					sqlParam = new SqlParameter("p3", SqlDbType.Int);
-					sqlParam.Value = protocol.Comission;
-					cmd.Parameters.Add(sqlParam);
-
-					cmd.ExecuteNonQuery();
+					switch(options.UnknownComissionAction)
+					{
+						case UnknownComissionActions.Create:
+							comissionId = insertComission(con, protocol);
+							m_logger.Log(String.Format("\tCreated new comission: {0} (region: '{1}') - id='{2}'", protocol.Comission, protocol.Region.Name, comissionId));
+							break;
+						case UnknownComissionActions.Ignore:
+						case UnknownComissionActions.Stop:
+							m_logger.Log(String.Format("\tNot existed comission '{0}' (region:'{1}') was ignored", protocol.Comission, protocol.Region.Name));
+							return false;
+						default:
+							throw new ArgumentOutOfRangeException();
+					}
 				}
 				else
 				{
@@ -294,47 +303,89 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 				}
 
 				// images of protocol
-				if (Downloader != null)
+				if (protocol.Images != null)
+				{
+					// NOTE: if we decide to download in parallel then we'll have to refuse using of single DownloadNotifier instance!
+					if (Downloader != null)
+						foreach (var image in protocol.Images)
+						{
+							var downloader = Downloader;
+							if (image.Image == null && downloader != null)
+							{
+								Task<byte[]> task = downloader.Download(image.Uri, options.DownloadNotifier, options.CancellationToken);
+								task.Wait();
+								image.Image = task.Result;
+							}
+						}
+					idx = 0;
+
 					foreach (var image in protocol.Images)
 					{
-						var downloader = Downloader;
-						if (image.Image == null && downloader != null)
-							image.Image = downloader.Download(image.Uri);
-					}
-				idx = 0;
-				foreach (var image in protocol.Images)
-				{
-					cmd = con.CreateCommand();
-					cmd.CommandText = "insert into ProtocolImage (ObjectID, [Protocol], [Uri], [Image], [Index]) " +
-					                  "values (@pId, @pProto, @pUri, @pImage, @pIndex)";
-					// ObjectID
-					sqlParam = new SqlParameter("pId", SqlDbType.UniqueIdentifier);
-					sqlParam.Value = Guid.NewGuid();
-					cmd.Parameters.Add(sqlParam);
-					// Protocol
-					sqlParam = new SqlParameter("pProto", SqlDbType.UniqueIdentifier);
-					sqlParam.Value = protocolId;
-					cmd.Parameters.Add(sqlParam);
-					// Uri
-					sqlParam = new SqlParameter("pUri", SqlDbType.VarChar);
-					sqlParam.Value = image.Uri;
-					cmd.Parameters.Add(sqlParam);
-					// Image
-					sqlParam = new SqlParameter("pImage", SqlDbType.VarBinary);
-					sqlParam.Value = image.Image;
-					if (image.Image == null)
-						sqlParam.Value = DBNull.Value;
-					sqlParam.IsNullable = true;
-					cmd.Parameters.Add(sqlParam);
-					// Index
-					sqlParam = new SqlParameter("pIndex", SqlDbType.Int);
-					sqlParam.Value = idx;
-					cmd.Parameters.Add(sqlParam);
+						if (String.IsNullOrEmpty(image.Uri) && image.Image == null)
+						{
+							// what's matter in creating empty object?
+							//m_logger.Log("\t");
+						}
+						else
+						{
+							cmd = con.CreateCommand();
+							cmd.CommandText = "insert into ProtocolImage (ObjectID, [Protocol], [Uri], [Image], [Index]) " +
+							                  "values (@pId, @pProto, @pUri, @pImage, @pIndex)";
+							// ObjectID
+							sqlParam = new SqlParameter("pId", SqlDbType.UniqueIdentifier);
+							sqlParam.Value = Guid.NewGuid();
+							cmd.Parameters.Add(sqlParam);
+							// Protocol
+							sqlParam = new SqlParameter("pProto", SqlDbType.UniqueIdentifier);
+							sqlParam.Value = protocolId;
+							cmd.Parameters.Add(sqlParam);
+							// Uri
+							sqlParam = new SqlParameter("pUri", SqlDbType.VarChar);
+							sqlParam.Value = image.Uri;
+							if (String.IsNullOrEmpty(image.Uri))
+								sqlParam.Value = DBNull.Value;
+							cmd.Parameters.Add(sqlParam);
+							// Image
+							sqlParam = new SqlParameter("pImage", SqlDbType.VarBinary);
+							sqlParam.Value = image.Image;
+							if (image.Image == null)
+								sqlParam.Value = DBNull.Value;
+							sqlParam.IsNullable = true;
+							cmd.Parameters.Add(sqlParam);
+							// Index
+							sqlParam = new SqlParameter("pIndex", SqlDbType.Int);
+							sqlParam.Value = idx;
+							cmd.Parameters.Add(sqlParam);
 
-					cmd.ExecuteNonQuery();
-					idx++;
+							cmd.ExecuteNonQuery();
+							idx++;
+						}
+					}
 				}
 			}
+			return true;
+		}
+
+		private Guid insertComission(SqlConnection con, PollProtocol protocol)
+		{
+			var cmd = con.CreateCommand();
+			cmd.CommandText = "insert into Comission (ObjectID, Region, [Number]) values (@p1, @p2, @p3)";
+			// ObjectID
+			var sqlParam = new SqlParameter("p1", SqlDbType.UniqueIdentifier);
+			Guid comissionId = Guid.NewGuid();
+			sqlParam.Value = comissionId;
+			cmd.Parameters.Add(sqlParam);
+			// Region
+			sqlParam = new SqlParameter("p2", SqlDbType.UniqueIdentifier);
+			sqlParam.Value = protocol.Region.Id;
+			cmd.Parameters.Add(sqlParam);
+			// Number
+			sqlParam = new SqlParameter("p3", SqlDbType.Int);
+			sqlParam.Value = protocol.Comission;
+			cmd.Parameters.Add(sqlParam);
+
+			cmd.ExecuteNonQuery();
+			return comissionId;
 		}
 
 		private void createRegion(Region region)

@@ -46,6 +46,7 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Resul
 GO
 
 
+-- Регион (пока без иерархии)
 CREATE TABLE [dbo].[Region] (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Name] varchar(255) NOT NULL
@@ -55,6 +56,7 @@ CREATE TABLE [dbo].[Region] (
 GO
 
 
+-- Поставщик данных протоколов (ЦИК, ruelect, kartaitogov, etc)
 CREATE TABLE ResultProvider (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Name] varchar(256) NOT NULL,
@@ -62,6 +64,7 @@ CREATE TABLE ResultProvider (
 )
 GO
 
+-- УИК (пока без иерархии)
 CREATE TABLE Comission (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Region] uniqueidentifier NOT NULL FOREIGN KEY REFERENCES [Region] (ObjectID),
@@ -69,6 +72,7 @@ CREATE TABLE Comission (
 )
 GO
 
+-- Данные протокола для одного провайдера и комиссии (содержит первые 18 результатов протокол, без числа голосов за кандидатов)
 CREATE TABLE Protocol (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Provider] uniqueidentifier NOT NULL FOREIGN KEY REFERENCES [ResultProvider] (ObjectID),
@@ -93,9 +97,8 @@ CREATE TABLE Protocol (
 	[Value18] int NOT NULL,
 )
 GO
-/*
 
-*/
+-- Образ протокола (картинка)
 CREATE TABLE ProtocolImage (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Protocol] uniqueidentifier NOT NULL FOREIGN KEY REFERENCES [Protocol] (ObjectID),
@@ -105,12 +108,14 @@ CREATE TABLE ProtocolImage (
 )	
 GO
 
+-- Голосование
 CREATE TABLE Poll (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Name] varchar(512) NOT NULL,
 )
 GO
 
+-- Кандидаты голосования
 CREATE TABLE Candidate (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Poll] uniqueidentifier NOT NULL FOREIGN KEY REFERENCES [Poll] (ObjectID),
@@ -119,6 +124,7 @@ CREATE TABLE Candidate (
 )
 GO
 
+-- Результаты протокола (число голосов в протоколе за одного кандидата)
 CREATE TABLE ProtocolResult (
 	[ObjectID] uniqueidentifier NOT NULL PRIMARY KEY,
 	[Protocol] uniqueidentifier NOT NULL FOREIGN KEY REFERENCES [Protocol] (ObjectID),

@@ -1,12 +1,8 @@
-// ******************************************************************************
-//  Copyright (C) CROC Inc. 2007-2009. All rights reserved.
-//  Инструментальная среда CROC XFW3
-// ******************************************************************************
 using System;
 using System.IO;
 using System.Threading;
 
-namespace Croc.XFW3.Utils
+namespace Elect.Loader.Common
 {
 	/// <summary>
 	/// Класс с набором утилитарных методов по работе с потоками (<see cref="Stream"/>)

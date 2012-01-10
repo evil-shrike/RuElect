@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Input;
 
-namespace Elect.Common
+namespace Elect.Loader.Common
 {
 	public class DelegateCommand: ICommand
 	{
