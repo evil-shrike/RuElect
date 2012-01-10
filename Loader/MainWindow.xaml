@@ -1,0 +1,100 @@
+﻿<Window x:Class="Elect.Loader.MainWindow"
+		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+		Title="MainWindow" Height="350" Width="550"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+		xmlns:Loader="clr-namespace:Elect.Loader" xmlns:Support="clr-namespace:Elect.Loader.Support" mc:Ignorable="d" 
+		d:DataContext="{d:DesignInstance IsDesignTimeCreatable=True, Type={x:Type Loader:RuelectViewModel}}"
+		>
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition />
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition/>
+		</Grid.ColumnDefinitions>
+		
+		
+		<TabControl Name="tabs">
+			<TabItem Header="RuElect">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition />
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition/>
+						<ColumnDefinition/>
+					</Grid.ColumnDefinitions>
+					<Label Grid.Row="0"><Hyperlink NavigateUri="http://ruelect.com/">http://ruelect.com/</Hyperlink></Label>
+
+					<Label Grid.Row="1" Content="File name (.csv)"></Label>
+					<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FileName}" />
+
+					<CheckBox Grid.Row="2" Grid.Column="1" Content="Download images" Margin="5" IsChecked="{Binding DownloadImage}"/>
+
+					<StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal">
+						<!--<Button Content="Load regions" Height="25" Command="{Binding LoadRegionsCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />-->
+
+						<Button Content="Check regions" Height="25" Command="{Binding CheckRegionsCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+
+						<Button Content="Load results" Height="25" Command="{Binding LoadResultsCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+
+						<Button Content="Stop" Height="25" Command="{Binding StopCommand}" IsEnabled="{Binding IsLoading}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+					</StackPanel>
+				</Grid>
+			</TabItem>
+
+			<TabItem Header="kartaitogov">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition />
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition/>
+						<ColumnDefinition/>
+					</Grid.ColumnDefinitions>
+					<Label Grid.Row="0">
+						<Hyperlink NavigateUri="http://www.kartaitogov.ru/">http://www.kartaitogov.ru</Hyperlink>
+					</Label>
+
+					<Label Grid.Row="1" Content="File name (.csv)"></Label>
+					<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FileName}" />
+
+					<StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal">
+
+						<Button Content="Download images" Height="25" Command="{Binding DownloadImagesCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+
+						<Button Content="Check regions" Height="25" Command="{Binding CheckRegionsCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+
+						<Button Content="Load results" Height="25" Command="{Binding LoadResultsCommand}" IsEnabled="{Binding IsNotBusy}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+
+						<Button Content="Stop" Height="25" Command="{Binding StopCommand}" IsEnabled="{Binding IsLoading}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+					</StackPanel>
+				</Grid>
+			</TabItem>
+		</TabControl>
+
+		<Button Grid.Row="1" Content="Clear log" Height="25" Command="{Binding ClearLogCommand}"
+				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
+		
+		<ListBox Grid.Row="2" ItemsSource="{Binding Log}" Support:Scroller.AutoScrollToEnd="True"/>
+	</Grid>
+</Window>
