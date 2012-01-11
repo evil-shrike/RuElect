@@ -1,19 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using Elect.Loader.Common;
 
 namespace Elect.Loader
 {
 	public class MainViewModel : NotifyPropertyChangedBase, ILogger
 	{
+		private bool m_isAutoscrollLog;
+
 		public MainViewModel()
 		{
 			Log = new ObservableCollection<LogItem>();
 			ClearLogCommand = new DelegateCommand(Log.Clear);
+			ToggleAutoscrollCommand = new DelegateCommand(toggleAutoscroll);
+			IsAutoscrollLog = true;
+
 		}
 
 		public ObservableCollection<LogItem> Log { get; set; }
@@ -59,6 +67,22 @@ namespace Elect.Loader
 		}
 
 		public ICommand ClearLogCommand { get; set; }
+		public ICommand ToggleAutoscrollCommand { get; private set; }
+
+		public Boolean IsAutoscrollLog
+		{
+			get { return m_isAutoscrollLog; }
+			set
+			{
+				m_isAutoscrollLog = value;
+				raisePropertyChangedEvent("IsAutoscrollLog");
+			}
+		}
+
+		private void toggleAutoscroll()
+		{
+			// TODO
+		}
 	}
 
 	public class LogItemDataTemplateSelector : DataTemplateSelector
@@ -129,4 +153,58 @@ namespace Elect.Loader
 		}
 	}
 
+	public class SeverityToFgColorConverter: IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			Brush brush;
+			var severity = (LogItemSeverity) value;
+			switch (severity)
+			{
+				case LogItemSeverity.Info:
+					brush = new SolidColorBrush(Colors.Black);
+					break;
+				case LogItemSeverity.Warn:
+					brush = new SolidColorBrush(Colors.Red);
+					break;
+				case LogItemSeverity.Error:
+					brush = new SolidColorBrush(Colors.White);
+					break;
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+			return brush;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			return null;
+		}
+	}
+	public class SeverityToBgColorConverter : IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			Brush brush;
+			var severity = (LogItemSeverity)value;
+			switch (severity)
+			{
+				case LogItemSeverity.Info:
+				case LogItemSeverity.Warn:
+					brush = new SolidColorBrush(Colors.Transparent);
+					break;
+				case LogItemSeverity.Error:
+					brush = new SolidColorBrush(Colors.Red);
+					break;
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+			return brush;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			return null;
+		}
+	}
 }

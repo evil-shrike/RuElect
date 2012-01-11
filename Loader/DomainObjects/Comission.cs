@@ -4,8 +4,8 @@ namespace Elect.DomainObjects
 {
 	public class Comission
 	{
-		public Guid Id;
-		public Region Region;
-		public int Number;
+		public Guid Id { get; set; }
+		public Region Region { get; set; }
+		public int Number { get; set; }
 	}
 }

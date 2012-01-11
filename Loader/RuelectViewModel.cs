@@ -11,6 +11,7 @@ namespace Elect.Loader
 {
 	public class RuelectViewModel : ImportViewModelBase
 	{
+		private string m_providerName;
 		private string m_fileName;
 		private bool m_bDownloadImage;
 
@@ -25,6 +26,17 @@ namespace Elect.Loader
 			//LoadRegionsCommand = new DelegateCommand(onLoadRegions);
 			CheckRegionsCommand = new DelegateCommand(onCheckRegions);
 			LoadResultsCommand = new DelegateCommand(() => loadProtocols());
+			ProviderName = "ruelect";
+		}
+
+		public string ProviderName
+		{
+			get { return m_providerName; }
+			set
+			{
+				m_providerName = value;
+				raisePropertyChangedEvent("FileName");
+			}
 		}
 
 		public string FileName
@@ -109,7 +121,7 @@ namespace Elect.Loader
 		internal Task loadProtocols()
 		{
 			Tcs = new CancellationTokenSource();
-			
+
 			TaskLoading = Task.Factory.StartNew(
 				() =>
 					{
@@ -118,7 +130,7 @@ namespace Elect.Loader
 						Repository.Initialize();
 
 						bool isNewProvider;
-						ResultProvider provider = GetOrCreateProvider(Path.GetFileName(FileName), out isNewProvider);
+						ResultProvider provider = Repository.GetOrCreateProvider(Path.GetFileName(FileName), out isNewProvider);
 
 						var poll = ensurePollCreated();
 						provider.Poll = poll;
@@ -129,13 +141,8 @@ namespace Elect.Loader
 						var loader = new RuelectCsvLoader(FileName);
 						loadProtocols(loader, provider, isNewProvider);
 					}, TaskCreationOptions.LongRunning)
-				.ContinueWith((t) =>
-				              	{
-				              		IsLoading = false;
-				              		LastError = t.Exception != null ? t.Exception.InnerException : null;
-				              		if (t.Exception != null)
-										log(t.Exception.GetBaseException().ToString());
-				              	});
+				.ContinueWith(tearDown);
+			
 			return TaskLoading;
 		}
 

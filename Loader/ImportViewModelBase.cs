@@ -71,8 +71,18 @@ namespace Elect.Loader
 
 		private void onStop()
 		{
+			if (TaskLoading == null)
+				return;
+
 			log("Cancelling");
-			TaskLoading.ContinueWith((t) => log("Canceled"));
+			TaskLoading.ContinueWith(
+				t =>
+					{
+						if (t.Exception != null)
+							log("Canceled with error: " + t.Exception.GetBaseException().Message);
+						else
+							log("Canceled");
+					});
 			Tcs.Cancel();
 		}
 
@@ -106,12 +116,12 @@ namespace Elect.Loader
 		
 		protected void logError(string msg)
 		{
-			m_logger.Log("ERROR: " + msg);
+			m_logger.LogError(msg);
 		}
 
 		protected void logWarning(string msg)
 		{
-			m_logger.Log("WARN: " + msg);
+			m_logger.LogWarning(msg);
 		}
 
 		protected void log(string msg)
@@ -125,20 +135,6 @@ namespace Elect.Loader
 		}
 		
 		#endregion
-
-		protected ResultProvider GetOrCreateProvider(string providerName, out bool isNew)
-		{
-			isNew = false;
-			ResultProvider provider;
-			if (!Repository.TryLoadProvider(providerName, out provider))
-			{
-				var providerId = Repository.CreateProvider(providerName, true);
-				provider = new ResultProvider {Id = providerId, Name = providerName};
-				log("Create a new provider: name=" + providerName + ", id=" + providerId);
-				isNew = true;
-			}
-			return provider;
-		}
 
 		protected Poll ensurePollCreated()
 		{
@@ -223,6 +219,34 @@ namespace Elect.Loader
 								  countTotal, protocol.Region.Name, protocol.Comission, protocol.Images.Count));
 			}
 			countTotal++;
+		}
+
+		protected void tearDown(Task t)
+		{
+			IsLoading = false;
+			try
+			{
+				LastError = t.Exception != null ? t.Exception.InnerException : null;
+				if (t.Exception != null)
+				{
+					var originalEx = t.Exception.GetBaseException();
+					if (!(originalEx is OperationCanceledException))
+						log(originalEx.ToString());
+				}
+				
+			}
+			catch (Exception ex)
+			{
+				// we don't want an unobserved task exception so swallow the exception
+				try
+				{
+					logError("Error in tear down logic: " + ex);
+				}
+				catch(Exception ex2)
+				{
+					Trace.WriteLine(ex2.ToString());
+				}
+			}
 		}
 	}
 }

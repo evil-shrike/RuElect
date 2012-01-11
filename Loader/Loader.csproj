@@ -59,6 +59,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AnalyzeViewModel.cs" />
     <Compile Include="CsvLoaderBase.cs" />
     <Compile Include="DomainObjects\Candidate.cs" />
     <Compile Include="DomainObjects\Comission.cs" />

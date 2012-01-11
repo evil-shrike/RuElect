@@ -28,22 +28,35 @@ namespace Elect.Loader
 
 			var window = new MainWindow();
 			var mainViewModel = new MainViewModel();
-			var repository = new Repository(m_connectionString, mainViewModel);
-			var vmRuelect = new RuelectViewModel(mainViewModel)
+			ILogger logger = mainViewModel;
+			var repository = new Repository(m_connectionString, logger );
+			var vmRuelect = new RuelectViewModel(logger)
 								{
 									Repository = repository
 								};
-			var vmKartaitogov = new KartaitogovViewModel(mainViewModel)
+			var vmKartaitogov = new KartaitogovViewModel(logger)
 									{
 										Repository = repository,
 										Downloader = new FileDownloader()
 									};
+			var vmAnalyze = new AnalyzeViewModel(logger)
+			                	{
+									Repository = repository
+			                	};
 			window.DataContext = mainViewModel;
 			((TabItem)window.tabs.Items[0]).DataContext = vmRuelect;
 			((TabItem)window.tabs.Items[1]).DataContext = vmKartaitogov;
+			((TabItem)window.tabs.Items[2]).DataContext = vmAnalyze;
+			
+			TaskScheduler.UnobservedTaskException += (s, ea) =>
+			                                         	{
+															logger.LogError("UnobservedTaskException: " + ea.Exception.GetBaseException().ToString());
+															// prevent app crashing:
+															ea.SetObserved();
+			                                         	};
 
 			Application.Current.MainWindow = window;
-			runInitialChecks(mainViewModel);
+			runInitialChecks(logger);
 			window.Show();
 		}
 

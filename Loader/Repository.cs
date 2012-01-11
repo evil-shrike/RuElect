@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
@@ -11,13 +12,17 @@ namespace Elect.Loader
 {
 	public class Repository : IRegionResolver
 	{
-		const int ProtocolCommonValuesCount = 18;
+		private int ProtocolCommonValuesCount = 18;
+		private int ProtocolVotesCount = 7;
+
 		private readonly string m_connectionString;
 		private readonly ILogger m_logger;
 		private bool m_bInitialized;
 		private readonly Dictionary<Guid, Region> m_regions = new Dictionary<Guid, Region>();
 		private readonly Dictionary<string, Guid> m_regionsNameToId = new Dictionary<string, Guid>();
-		List<Comission> m_comissions;
+		private List<Comission> m_comissions;
+		private readonly Dictionary<Guid, ResultProvider> m_providers = new Dictionary<Guid, ResultProvider>();
+		private readonly Dictionary<string, Guid> m_providersNameToId = new Dictionary<string, Guid>();
 
 		public Repository(string connectionString, ILogger logger)
 		{
@@ -31,6 +36,7 @@ namespace Elect.Loader
 		{
 			loadRegions();
 			loadComissions();
+			loadProviders();
 			m_bInitialized = true;
 		}
 
@@ -48,7 +54,7 @@ namespace Elect.Loader
 						string name = reader.GetString(1);
 						Guid id = reader.GetGuid(0);
 						m_regionsNameToId[name] = id;
-						m_regions[id] = new Region { Id = id, Name = name };
+						m_regions[id] = new Region {Id = id, Name = name};
 					}
 				}
 			}
@@ -78,36 +84,55 @@ namespace Elect.Loader
 			}
 		}
 
+		private void loadProviders()
+		{
+			using (var con = new SqlConnection(m_connectionString))
+			{
+				con.Open();
+				var cmd = con.CreateCommand();
+				cmd.CommandText = "select ObjectID, Name from ResultProvider";
+				using (var reader = cmd.ExecuteReader())
+				{
+					while (reader.Read())
+					{
+						var provider = new ResultProvider
+						               	{
+						               		Id = reader.GetGuid(0),
+						               		Name = reader.GetString(1)
+						               	};
+						m_providers[provider.Id] = provider;
+						m_providersNameToId[provider.Name] = provider.Id;
+					}
+				}
+			}
+		}
+
 		private void ensureInitialized()
 		{
 			if (!m_bInitialized)
 				Initialize();
 		}
 
-		public bool TryLoadProvider(string name, out ResultProvider provider)
+		public ResultProvider GetOrCreateProvider(string providerName, out bool isNew)
 		{
-			provider = null;
-			using (var con = new SqlConnection(m_connectionString))
+			isNew = false;
+			ResultProvider provider;
+			Guid providerId;
+			if (m_providersNameToId.TryGetValue(providerName, out providerId))
 			{
-				con.Open();
-				var cmd = con.CreateCommand();
-				cmd.CommandText = "select ObjectID from ResultProvider where name = @p1";
-				var paramName = new SqlParameter("p1", SqlDbType.VarChar);
-				paramName.Value = name;
-				cmd.Parameters.Add(paramName);
-				using (var reader = cmd.ExecuteReader())
-				{
-					while (reader.Read())
-					{
-						provider = new ResultProvider() { Name = name, Id = reader.GetGuid(0) };
-						return true;
-					}
-				}
+				provider = m_providers[providerId];
 			}
-			return false;
+			else
+			{
+				providerId = insertProvider(providerName, true);
+				provider = new ResultProvider {Id = providerId, Name = providerName};
+				m_logger.Log("Created new provider: name=" + providerName + ", id=" + providerId);
+				isNew = true;
+			}
+			return provider;
 		}
 
-		public Guid CreateProvider(string name, bool isFile)
+		private Guid insertProvider(string name, bool isFile)
 		{
 			Guid id;
 			using (var con = new SqlConnection(m_connectionString))
@@ -139,7 +164,8 @@ namespace Elect.Loader
 			{
 				con.Open();
 				var cmd = con.CreateCommand();
-				cmd.CommandText = @"select p.ObjectID, 
+				cmd.CommandText =
+					@"select p.ObjectID, p.Provider,
 p.Value1, p.Value2, p.Value3, p.Value4, p.Value5, p.Value6, p.Value7, p.Value8, p.Value9, p.Value10, p.Value11, p.Value12, p.Value13, p.Value14, p.Value15, p.Value16, p.Value17, p.Value18
 from Protocol p join Comission c on p.Comission = c.ObjectID
 where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
@@ -157,30 +183,62 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 				paramName.Value = protocol.Region.Id;
 				cmd.Parameters.Add(paramName);
 
-				using (var reader = cmd.ExecuteReader())
+				//m_comissions.Where(c => c.Region.Id =)
+				var protocols = loadProtocols(cmd, protocol.Region, protocol.Comission);
+				return protocols.FirstOrDefault();
+			}
+		}
+
+		private IList<PollProtocol> loadProtocols(DbCommand cmd, Region region, int comissionNum)
+		{
+			var protocols = new List<PollProtocol>();
+			using (var reader = cmd.ExecuteReader())
+			{
+				while (reader.Read())
 				{
-					while (reader.Read())
+					const int offset = 2; // start index at which protocol result values begin (we need skip Object, Provider)
+
+					var protocol = new PollProtocol
+					               	{
+					               		Id = reader.GetGuid(0),
+					               		Provider = m_providers[reader.GetGuid(1)],
+					               		Region = region,
+					               		Comission = comissionNum,
+					               		Results = new int[ProtocolCommonValuesCount + ProtocolVotesCount]
+					               	};
+					for (int i = 0; i < ProtocolCommonValuesCount; i++)
 					{
-						int off = 1;
-						PollProtocol loadedProtocol = new PollProtocol()
-						                              	{
-						                              		Comission = protocol.Comission,
-						                              		Id = reader.GetGuid(0),
-						                              		Provider = protocol.Provider,
-						                              		Region = protocol.Region,
-						                              		Results = new int[ProtocolCommonValuesCount]
-						                              	};
-						for (int i = 0; i < ProtocolCommonValuesCount; i++)
+						protocol.Results[i] = reader.GetInt32(offset + i);
+					}
+					protocols.Add(protocol);
+				}
+			}
+			if (protocols.Count > 0)
+			{
+				// load candidates' results
+				cmd.Parameters.Clear();
+				cmd.CommandText = "select Value from ProtocolResult where Protocol = @p order by [Index]";
+				var sqlParam = cmd.CreateParameter();
+				sqlParam.ParameterName = "p";
+				sqlParam.DbType = DbType.Guid;
+				cmd.Parameters.Add(sqlParam);
+
+				foreach (PollProtocol protocol in protocols)
+				{
+					sqlParam.Value = protocol.Id;
+					using (var reader = cmd.ExecuteReader())
+					{
+						int i = ProtocolCommonValuesCount;
+						while (reader.Read())
 						{
-							loadedProtocol.Results[i] = reader.GetInt32(off + i);
+							protocol.Results[i] = reader.GetInt32(0);
+							i++;
 						}
-						return loadedProtocol;
 					}
 				}
-
-				// TODO: load candidates' results
 			}
-			return null;
+			// TODO: load protocols' images
+			return protocols;
 		}
 
 		public bool SaveProtocol(PollProtocol protocol, ProtocolSaveOption options)
@@ -199,7 +257,7 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 				// create region if needed
 				if (protocol.Region.IsNew)
 				{
-					switch(options.UnknownRegionAction)
+					switch (options.UnknownRegionAction)
 					{
 						case UnknownRegionActions.Create:
 							createRegion(protocol.Region);
@@ -220,15 +278,17 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 				if (comission == null)
 				{
 					// we need to create the protocol's comission as it doesn't exist
-					switch(options.UnknownComissionAction)
+					switch (options.UnknownComissionAction)
 					{
 						case UnknownComissionActions.Create:
 							comissionId = insertComission(con, protocol);
-							m_logger.Log(String.Format("\tCreated new comission: {0} (region: '{1}') - id='{2}'", protocol.Comission, protocol.Region.Name, comissionId));
+							m_logger.Log(String.Format("\tCreated new comission: {0} (region: '{1}') - id='{2}'", protocol.Comission,
+							                           protocol.Region.Name, comissionId));
 							break;
 						case UnknownComissionActions.Ignore:
 						case UnknownComissionActions.Stop:
-							m_logger.Log(String.Format("\tNot existed comission '{0}' (region:'{1}') was ignored", protocol.Comission, protocol.Region.Name));
+							m_logger.Log(String.Format("\tNot existed comission '{0}' (region:'{1}') was ignored", protocol.Comission,
+							                           protocol.Region.Name));
 							return false;
 						default:
 							throw new ArgumentOutOfRangeException();
@@ -243,8 +303,9 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 
 				// base results
 				cmd = con.CreateCommand();
-				cmd.CommandText = "insert into Protocol (ObjectID, [Provider], [Comission], [Value1], [Value2], [Value3], [Value4], [Value5], [Value6], [Value7], [Value8], [Value9], [Value10], [Value11], [Value12], [Value13], [Value14], [Value15], [Value16], [Value17], [Value18]) " +
-				                  "values (@pId, @pPr, @pCom, @pV1, @pV2, @pV3, @pV4, @pV5, @pV6, @pV7, @pV8, @pV9, @pV10, @pV11, @pV12, @pV13, @pV14, @pV15, @pV16, @pV17, @pV18)";
+				cmd.CommandText =
+					"insert into Protocol (ObjectID, [Provider], [Comission], [Value1], [Value2], [Value3], [Value4], [Value5], [Value6], [Value7], [Value8], [Value9], [Value10], [Value11], [Value12], [Value13], [Value14], [Value15], [Value16], [Value17], [Value18]) " +
+					"values (@pId, @pPr, @pCom, @pV1, @pV2, @pV3, @pV4, @pV5, @pV6, @pV7, @pV8, @pV9, @pV10, @pV11, @pV12, @pV13, @pV14, @pV15, @pV16, @pV17, @pV18)";
 				// ObjectID
 				sqlParam = new SqlParameter("pId", SqlDbType.UniqueIdentifier);
 				var protocolId = Guid.NewGuid();
@@ -313,7 +374,15 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 							if (image.Image == null && downloader != null)
 							{
 								Task<byte[]> task = downloader.Download(image.Uri, options.DownloadNotifier, options.CancellationToken);
-								task.Wait();
+								try
+								{
+									task.Wait();
+								}
+								catch
+								{
+									options.CancellationToken.ThrowIfCancellationRequested();
+									throw;
+								}
 								image.Image = task.Result;
 							}
 						}
@@ -438,7 +507,7 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 						sqlParamName.Value = region;
 						cmd.ExecuteNonQuery();
 						m_regionsNameToId[region] = id;
-						m_regions[id] = new Region() { Id = id, Name = region };
+						m_regions[id] = new Region() {Id = id, Name = region};
 						createCount++;
 					}
 				}
@@ -453,24 +522,25 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 			if (m_regionsNameToId.TryGetValue(name, out id))
 				return m_regions[id];
 
-			var region = new Region() { Id = Guid.NewGuid(), Name = name, IsNew = true };
+			var region = new Region() {Id = Guid.NewGuid(), Name = name, IsNew = true};
 			return region;
 		}
-/*
 
-		bool IRegionResolver.TryGet(string name, out Region region)
-		{
-			ensureInitialized();
-			Guid id;
-			region = null;
-			if (m_regionsNameToId.TryGetValue(name, out id))
-			{
-				region = m_regions[id];
-				return true;
-			}
-			return false;
-		}
-*/
+		/*
+
+				bool IRegionResolver.TryGet(string name, out Region region)
+				{
+					ensureInitialized();
+					Guid id;
+					region = null;
+					if (m_regionsNameToId.TryGetValue(name, out id))
+					{
+						region = m_regions[id];
+						return true;
+					}
+					return false;
+				}
+		*/
 
 		bool IRegionResolver.Contains(string name)
 		{
@@ -540,7 +610,7 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 
 							var candidateIdRaw = cmd.ExecuteScalar();
 							if (candidateIdRaw != null)
-								candidate.Id = (Guid)candidateIdRaw;
+								candidate.Id = (Guid) candidateIdRaw;
 							bCreate = (candidateIdRaw == null);
 						}
 
@@ -574,6 +644,46 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 					}
 					tran.Commit();
 				}
+			}
+		}
+
+		public IEnumerable<Region> GetRegions()
+		{
+			ensureInitialized();
+			return m_regions.Values;
+		}
+
+		public IEnumerable<Comission> GetComissions(Guid regionId)
+		{
+			ensureInitialized();
+			return m_comissions.Where(c => c.Region.Id == regionId);
+		}
+
+		public IEnumerable<PollProtocol> GetComissionProtocols(Comission comission)
+		{
+			ensureInitialized();
+
+			using (var con = new SqlConnection(m_connectionString))
+			{
+				con.Open();
+				var cmd = con.CreateCommand();
+				cmd.CommandText =
+					@"select p.ObjectID, p.Provider,
+p.Value1, p.Value2, p.Value3, p.Value4, p.Value5, p.Value6, p.Value7, p.Value8, p.Value9, p.Value10, p.Value11, p.Value12, p.Value13, p.Value14, p.Value15, p.Value16, p.Value17, p.Value18
+from Protocol p join Comission c on p.Comission = c.ObjectID
+where c.Number = @p1 and c.Region = @p2";
+
+				// p1 - Comission.Number
+				var sqlParam = new SqlParameter("p1", SqlDbType.Int);
+				sqlParam.Value = comission.Number;
+				cmd.Parameters.Add(sqlParam);
+				// p2 - Comission.Region
+				sqlParam = new SqlParameter("p2", SqlDbType.UniqueIdentifier);
+				sqlParam.Value = comission.Region.Id;
+				cmd.Parameters.Add(sqlParam);
+
+				var protocols = loadProtocols(cmd, comission.Region, comission.Number);
+				return protocols;
 			}
 		}
 	}

@@ -2,7 +2,7 @@ namespace Elect.DomainObjects
 {
 	public class PollProtocolImage
 	{
-		public string Uri;
-		public byte[] Image;
+		public string Uri { get; set; }
+		public byte[] Image { get; set; }
 	}
 }

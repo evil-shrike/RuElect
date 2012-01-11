@@ -38,6 +38,7 @@ namespace Elect.Loader
 			wc.DownloadDataCompleted +=
 				(s, ea) =>
 					{
+						var d = uri;
 						if (notifier != null)
 							notifier.ReportFinish();
 						if (ea.Error != null)

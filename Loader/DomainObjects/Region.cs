@@ -4,8 +4,8 @@ namespace Elect.DomainObjects
 {
 	public class Region
 	{
-		public Guid Id;
-		public String Name;
-		public bool IsNew;
+		public Guid Id { get; set; }
+		public String Name { get; set; }
+		public bool IsNew { get; set; }
 	}
 }

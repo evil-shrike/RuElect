@@ -5,9 +5,9 @@ namespace Elect.DomainObjects
 {
 	public class Poll
 	{
-		public Guid Id;
-		public String Name;
-		public IList<Candidate> Candidates;
+		public Guid Id { get; set; }
+		public String Name { get; set; }
+		public IList<Candidate> Candidates { get; set; }
 		//public DateTime Date;
 	}
 }

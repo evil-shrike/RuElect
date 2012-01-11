@@ -68,7 +68,7 @@ namespace Elect.Loader
 						Repository.Initialize();
 
 						bool isNewProvider;
-						ResultProvider provider = GetOrCreateProvider(ProviderName, out isNewProvider);
+						ResultProvider provider = Repository.GetOrCreateProvider(ProviderName, out isNewProvider);
 
 						var poll = ensurePollCreated();
 						provider.Poll = poll;
@@ -77,6 +77,10 @@ namespace Elect.Loader
 							return;
 
 						string pageContent = downloadMainPage();
+
+						if (Tcs.IsCancellationRequested)
+							return;
+
 						IDictionary<string, string> imageFilesMap = parseAndDownloadImages(pageContent);
 						var loader = new KartaitogovWebLoader(pageContent, imageFilesMap, Logger);
 						loadProtocols(loader, provider, isNewProvider);
@@ -98,24 +102,21 @@ namespace Elect.Loader
 
 			TaskLoading = Task.Factory.StartNew(
 				() =>
-				{
-					if (String.IsNullOrEmpty(ImagesFolder))
 					{
-						log("You should specify folder for protocol images");
-						return;
-					}
-					IsLoading = true;
-					string pageContent = downloadMainPage();
-
-					parseAndDownloadImages(pageContent);
-				}).ContinueWith(
-						(t) =>
+						if (String.IsNullOrEmpty(ImagesFolder))
 						{
-							IsLoading = false;
-							LastError = t.Exception != null ? t.Exception.InnerException : null;
-							if (t.Exception != null)
-								log(t.Exception.GetBaseException().Message);
-						});
+							log("You should specify folder for protocol images");
+							return;
+						}
+						IsLoading = true;
+						string pageContent = downloadMainPage();
+						if (Tcs.IsCancellationRequested)
+							return;
+
+						parseAndDownloadImages(pageContent);
+					})
+				.ContinueWith(tearDown);
+
 			return TaskLoading;
 		}
 
@@ -172,7 +173,9 @@ namespace Elect.Loader
 					catch (Exception ex)
 					{
 						Tcs.Token.ThrowIfCancellationRequested();
-						throw;
+						logWarning(String.Format("Error during downloading image {0}: {1}", Uri.UnescapeDataString(uri), ex));
+						continue;
+						//throw;
 					}
 					var fileBytes = task.Result;
 					File.WriteAllBytes(filePath, fileBytes);
@@ -180,15 +183,6 @@ namespace Elect.Loader
 					countNew++;
 				}
 				imageFilesMap[uri] = filePath;
-				/* DEBUG:
-				var bld = new StringBuilder();
-				foreach (Group group in match.Groups)
-				{
-					bld.Append(group.Value).Append(", ");
-				}
-				bld.Length -= 2;
-				log(match.Value + " : " + bld);
-				*/
 				countTotal++;
 			}
 
