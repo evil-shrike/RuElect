@@ -13,6 +13,7 @@ namespace Elect.Loader
 {
 	public class KartaitogovViewModel : ImportViewModelBase
 	{
+		private const string DefaultProviderName = "kartaitogov";
 		private string m_providerName;
 		private string m_imagesFolder;
 
@@ -29,7 +30,7 @@ namespace Elect.Loader
 			DownloadImagesCommand  = new DelegateCommand(() => downloadImagesAsync());
 			ParseCommand = new DelegateCommand(() => parseResultsAsync());
 			ImagesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "KartaitogovImages");
-			ProviderName = "kartaitogov";
+			ProviderName = DefaultProviderName;
 		}
 
 		public string ProviderName
@@ -68,7 +69,8 @@ namespace Elect.Loader
 						Repository.Initialize();
 
 						bool isNewProvider;
-						ResultProvider provider = Repository.GetOrCreateProvider(ProviderName, out isNewProvider);
+						string providerName = String.IsNullOrWhiteSpace(ProviderName) ? DefaultProviderName : ProviderName;
+						ResultProvider provider = Repository.GetOrCreateProvider(providerName, out isNewProvider);
 
 						var poll = ensurePollCreated();
 						provider.Poll = poll;

@@ -32,7 +32,8 @@ namespace Elect.Loader
 			var repository = new Repository(m_connectionString, logger );
 			var vmRuelect = new RuelectViewModel(logger)
 								{
-									Repository = repository
+									Repository = repository,
+									Downloader = new FileDownloader()
 								};
 			var vmKartaitogov = new KartaitogovViewModel(logger)
 									{
