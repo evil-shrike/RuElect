@@ -2,7 +2,10 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Elect.Loader.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="RuelectImportFilePath" Type="System.String" Scope="Application">
+    <Setting Name="RuelectImportFilePath" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="KartaitogovImageFolder" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
   </Settings>

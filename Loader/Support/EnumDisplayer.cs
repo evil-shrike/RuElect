@@ -52,6 +52,7 @@ namespace Elect.Loader.Support
 		public EnumDisplayer(Type type)
 		{
 			Type = type;
+			initializeDisplayValues();
 		}
 
 		public Type Type
@@ -65,13 +66,19 @@ namespace Elect.Loader.Support
 			}
 		}
 
+		private void initializeDisplayValues()
+		{
+			Type displayValuesType = typeof(Dictionary<,>)
+				.GetGenericTypeDefinition().MakeGenericType(Type, typeof(string));
+			_displayValues = (IDictionary)Activator.CreateInstance(displayValuesType);
+		}
+
 		public ReadOnlyCollection<string> DisplayNames
 		{
 			get
 			{
-				Type displayValuesType = typeof (Dictionary<,>)
-					.GetGenericTypeDefinition().MakeGenericType(_type, typeof(string));
-				_displayValues = (IDictionary) Activator.CreateInstance(displayValuesType);
+				if (_displayValues == null)
+					initializeDisplayValues();
 
 				_reverseValues =
 					(IDictionary) Activator.CreateInstance(typeof (Dictionary<,>)
@@ -110,11 +117,15 @@ namespace Elect.Loader.Support
 
 		object IValueConverter.Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
+			if (_displayValues == null)
+				return null;
 			return _displayValues[value];
 		}
 
 		object IValueConverter.ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
 		{
+			if (_reverseValues == null)
+				return null;
 			return _reverseValues[value];
 		}
 

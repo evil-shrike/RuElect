@@ -184,12 +184,12 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 				cmd.Parameters.Add(paramName);
 
 				//m_comissions.Where(c => c.Region.Id =)
-				var protocols = loadProtocols(cmd, protocol.Region, protocol.Comission);
+				var protocols = loadProtocols(cmd, protocol.Region, protocol.Comission, false);
 				return protocols.FirstOrDefault();
 			}
 		}
 
-		private IList<PollProtocol> loadProtocols(DbCommand cmd, Region region, int comissionNum)
+		private IList<PollProtocol> loadProtocols(DbCommand cmd, Region region, int comissionNum, bool bLoadImages)
 		{
 			var protocols = new List<PollProtocol>();
 			using (var reader = cmd.ExecuteReader())
@@ -236,8 +236,34 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 						}
 					}
 				}
+
+				cmd.Parameters.Clear();
+				cmd.CommandText = "select ObjectID, Uri, Image from ProtocolImage where Protocol = @p order by [Index]";
+				sqlParam = cmd.CreateParameter();
+				sqlParam.ParameterName = "p";
+				sqlParam.DbType = DbType.Guid;
+				cmd.Parameters.Add(sqlParam);
+
+				foreach (PollProtocol protocol in protocols)
+				{
+					sqlParam.Value = protocol.Id;
+					using (var reader = cmd.ExecuteReader())
+					{
+						var images = new List<PollProtocolImage>();
+
+						while (reader.Read())
+						{
+							
+							images.Add(new PollProtocolImage
+							           	{
+											Uri = reader.GetString(1),
+											Image = ((SqlDataReader)reader).GetSqlBinary(2).Value
+							           	});
+						}
+						protocol.Images = images;
+					}
+				}
 			}
-			// TODO: load protocols' images
 			return protocols;
 		}
 
@@ -682,7 +708,7 @@ where c.Number = @p1 and c.Region = @p2";
 				sqlParam.Value = comission.Region.Id;
 				cmd.Parameters.Add(sqlParam);
 
-				var protocols = loadProtocols(cmd, comission.Region, comission.Number);
+				var protocols = loadProtocols(cmd, comission.Region, comission.Number, true);
 				return protocols;
 			}
 		}

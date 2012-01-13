@@ -2,7 +2,7 @@
 		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-		Title="Russian Election Results Loader and Analyzer" Height="350" Width="550"
+		Title="Russian Election Results Loader and Analyzer" Height="400" Width="600"
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
 		xmlns:Loader="clr-namespace:Elect.Loader" xmlns:Support="clr-namespace:Elect.Loader.Support" mc:Ignorable="d" 
 		d:DataContext="{d:DesignInstance IsDesignTimeCreatable=True, Type={x:Type Loader:MainViewModel}}"
@@ -141,6 +141,7 @@
 						<RowDefinition Height="Auto"/>
 						<RowDefinition Height="Auto"/>
 						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
 						<RowDefinition />
 					</Grid.RowDefinitions>
 					<Grid.ColumnDefinitions>
@@ -167,25 +168,88 @@
 							  DisplayMemberPath="Number" MaxWidth="500"
 							  />
 
-					<ListView Grid.Row="3" Grid.ColumnSpan="2" ItemsSource="{Binding Protocols}" SelectionMode="Single"
-							  SelectedItem="{Binding SelectedProtocol, Mode=TwoWay}">
+					<CheckBox Grid.Row="3" Grid.Column="1" Content="Show all columns" IsChecked="{Binding ShowAuxColumns}">
+						<!-- does't work yet -->
+					</CheckBox>
+					<ListView Grid.Row="4" Grid.ColumnSpan="2" ItemsSource="{Binding Protocols}" SelectionMode="Single"
+							  SelectedItem="{Binding SelectedProtocol, Mode=TwoWay}"
+							  Loader:GridViewColumnVisibilityManager.Enabled="True"
+							  Name="lvProtocols">
+						<ListView.Resources>
+							<DataTemplate x:Key="headerTemplate">
+								<TextBlock Text="{Binding}"  Margin="1">
+									<TextBlock.ToolTip>
+										<ToolTip>
+											<TextBlock Foreground="Green" Text="{Binding}"/>
+										</ToolTip>
+									</TextBlock.ToolTip>
+								</TextBlock>
+							</DataTemplate>
+						</ListView.Resources>
 						<ListView.View>
 							<GridView>
-								<!--<GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" />-->
 								<GridViewColumn Header="Provider" DisplayMemberBinding="{Binding Provider.Name}" />
-								<GridViewColumn Header="Справедливая Россия" DisplayMemberBinding="{Binding Results[18]}" />
-								<GridViewColumn Header="ЛДПР" DisplayMemberBinding="{Binding Results[19]}" />
-								<GridViewColumn Header="Патриоты России" DisplayMemberBinding="{Binding Results[20]}" />
-								<GridViewColumn Header="КПРФ" DisplayMemberBinding="{Binding Results[21]}" />
-								<GridViewColumn Header="ЯБЛОКО" DisplayMemberBinding="{Binding Results[22]}" />
-								<GridViewColumn Header="Единая Россия" DisplayMemberBinding="{Binding Results[23]}" />
-								<GridViewColumn Header="Правое дело" DisplayMemberBinding="{Binding Results[24]}" />
+
+								<!--<GridViewColumn Header="Число избирателей, внесенных в список избирателей" 
+												DisplayMemberBinding="{Binding Results[0]}" HeaderTemplate="{StaticResource headerTemplate}"
+												Loader:GridViewColumnVisibilityManager.IsVisible="{Binding Path=DataContext.ShowAuxColumns,ElementName=lvProtocols}" 
+												/>
+								<GridViewColumn Header="Число избирательных бюллетеней, полученных участковой избирательной комиссией" 
+												DisplayMemberBinding="{Binding Results[1]}" HeaderTemplate="{StaticResource headerTemplate}"
+												Loader:GridViewColumnVisibilityManager.IsVisible="{Binding Path=DataContext.ShowAuxColumns,ElementName=lvProtocols}" 
+												/>
+								<GridViewColumn Header="" 
+												DisplayMemberBinding="{Binding Results[2]}" HeaderTemplate="{StaticResource headerTemplate}"
+												Loader:GridViewColumnVisibilityManager.IsVisible="{Binding Path=DataContext.ShowAuxColumns,ElementName=lvProtocols}" 
+												/>-->
 								<!--
 
-								-->
+Число избирательных бюллетеней, выданных избирателям, проголосовавшим досрочно
+Число избирательных бюллетеней, выданных избирателям в помещении для голосования
+Число избирательных бюллетеней, выданных избирателям вне помещения для голосования
+Число погашенных избирательных бюллетеней
+Число избирательных бюллетеней в переносных ящиках для голосования
+Число избирательных бюллетеней в стационарных ящиках для голосования
+Число недействительных избирательных бюллетеней
+Число действительных избирательных бюллетеней
+Число открепительных удостоверений, полученных участковой избирательной комиссией
+Число открепительных удостоверений, выданных избирателям на избирательном участке
+Число избирателей, проголосовавших по открепительным удостоверениям на избирательном участке
+Число погашенных неиспользованных открепительных удостоверений
+Число открепительных удостоверений, выданных избирателям территориальной избирательной комиссией
+Число утраченных открепительных удостоверений
+Число утраченных избирательных бюллетеней
+Число избирательных бюллетеней, не учтенных при получении-->
+
+								<GridViewColumn Header="Справедливая Россия" DisplayMemberBinding="{Binding Results[18]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="ЛДПР" DisplayMemberBinding="{Binding Results[19]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="Патриоты России" DisplayMemberBinding="{Binding Results[20]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="КПРФ" DisplayMemberBinding="{Binding Results[21]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="ЯБЛОКО" DisplayMemberBinding="{Binding Results[22]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="Единая Россия" DisplayMemberBinding="{Binding Results[23]}" HeaderTemplate="{StaticResource headerTemplate}"/>
+								<GridViewColumn Header="Правое дело" DisplayMemberBinding="{Binding Results[24]}" HeaderTemplate="{StaticResource headerTemplate}"/>
 							</GridView>
 						</ListView.View>
 					</ListView>
+
+					<Slider Grid.Row="5" Grid.ColumnSpan="2" Minimum="30" Maximum="3000" Orientation="Horizontal" HorizontalContentAlignment="Stretch"
+							Value="{Binding MaxImageWidth}" />
+					<ListView Grid.Row="6" Grid.ColumnSpan="2" 
+							  ItemsSource="{Binding SelectedProtocol.Images}" Name="lvImages" MaxHeight="400" ScrollViewer.CanContentScroll="False" >
+						<ListView.ItemsPanel>
+							<ItemsPanelTemplate>
+								<StackPanel Orientation="Horizontal"></StackPanel>
+							</ItemsPanelTemplate>
+						</ListView.ItemsPanel>
+						<ListView.ItemTemplate>
+							<DataTemplate>
+								<Image Source="{Binding Image}" Margin="5" Width="{Binding Path=DataContext.MaxImageWidth,ElementName=lvImages}" 
+									   Height="{Binding Path=DataContext.MaxImageWidth,ElementName=lvImages}" 
+									   />
+							</DataTemplate>
+						</ListView.ItemTemplate>
+					</ListView>
+
 				</Grid>
 			</TabItem>
 		</TabControl>
@@ -198,7 +262,7 @@
 				HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
 		</StackPanel>
 
-		<ListBox Grid.Row="2" ItemsSource="{Binding Log}" Support:Scroller.AutoScrollToEnd="True" HorizontalContentAlignment="Stretch">
+		<ListBox Grid.Row="2" ItemsSource="{Binding Log}" Support:Scroller.AutoScrollToEnd="{Binding Path=IsAutoscrollLog,Mode=OneWay}" HorizontalContentAlignment="Stretch">
 			<ListBox.Resources>
 				<Loader:SeverityToFgColorConverter x:Key="severityToFgColor"/>
 				<Loader:SeverityToBgColorConverter x:Key="severityToBgColor"/>

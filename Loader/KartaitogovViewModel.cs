@@ -29,8 +29,10 @@ namespace Elect.Loader
 		{
 			DownloadImagesCommand  = new DelegateCommand(() => downloadImagesAsync());
 			ParseCommand = new DelegateCommand(() => parseResultsAsync());
-			ImagesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "KartaitogovImages");
 			ProviderName = DefaultProviderName;
+			ImagesFolder = Properties.Settings.Default.KartaitogovImageFolder;
+			if (String.IsNullOrEmpty(ImagesFolder))
+				ImagesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "KartaitogovImages");
 		}
 
 		public string ProviderName
@@ -50,10 +52,12 @@ namespace Elect.Loader
 			{
 				m_imagesFolder = value;
 				raisePropertyChangedEvent("ImagesFolder");
+				Properties.Settings.Default.KartaitogovImageFolder = value;
 			}
 		}
 
 		public ICommand DownloadImagesCommand { get; set; }
+
 		public ICommand ParseCommand { get; set; }
 
 		public IDownloader Downloader { get; set; }

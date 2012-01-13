@@ -30,9 +30,10 @@ namespace Elect.Loader
 		public RuelectViewModel(ILogger logger): base(logger)
 		{
 			//LoadRegionsCommand = new DelegateCommand(onLoadRegions);
-			CheckRegionsCommand = new DelegateCommand(onCheckRegions);
+			CheckRegionsCommand = new DelegateCommand(() => checkRegions());
 			LoadResultsCommand = new DelegateCommand(() => loadProtocols());
 			ProviderName = DefaultProviderName;
+			FileName = Properties.Settings.Default.RuelectImportFilePath;
 		}
 
 		public string ProviderName
@@ -62,6 +63,7 @@ namespace Elect.Loader
 			{
 				m_fileName = value;
 				raisePropertyChangedEvent("FileName");
+				Properties.Settings.Default.RuelectImportFilePath = value;
 			}
 		}
 
@@ -114,29 +116,40 @@ namespace Elect.Loader
 		}
 */
 
-		private void onCheckRegions()
+		private Task checkRegions()
 		{
-			if (!ensureFileNameSpecified()) return;
-			Repository.Initialize();
-			if (DownloadCsv)
-			{
-				FileName = downloadAndSaveCsv();
-			}
-			var loader = new RuelectCsvLoader(FileName);
-			try
-			{
-				loader.CheckRegions(Repository);
-				log("All regions from csv-file exist in DB");
-			}
-			catch (InvalidDataException ex)
-			{
-				log(ex.ToString());
-				//MessageBox.Show(ex.ToString());
-			}
-			finally
-			{
-				loader.Dispose();
-			}
+			Tcs = new CancellationTokenSource();
+
+			TaskLoading = Task.Factory.StartNew(
+				() =>
+					{
+						if (!ensureFileNameSpecified()) return;
+						Repository.Initialize();
+						if (DownloadCsv)
+						{
+							FileName = downloadAndSaveCsv();
+							if (String.IsNullOrEmpty(FileName))
+								return;
+						}
+						var loader = new RuelectCsvLoader(FileName);
+						try
+						{
+							loader.CheckRegions(Repository);
+							log("All regions from csv-file exist in DB");
+						}
+						catch (InvalidDataException ex)
+						{
+							log(ex.ToString());
+							//MessageBox.Show(ex.ToString());
+						}
+						finally
+						{
+							loader.Dispose();
+						}
+					}, TaskCreationOptions.LongRunning)
+				.ContinueWith(tearDown);
+
+			return TaskLoading;
 		}
 
 		internal Task loadProtocols()

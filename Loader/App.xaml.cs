@@ -61,6 +61,19 @@ namespace Elect.Loader
 			window.Show();
 		}
 
+		protected override void OnExit(ExitEventArgs e)
+		{
+			try
+			{
+				Loader.Properties.Settings.Default.Save();
+			}
+			catch(Exception ex)
+			{
+				Trace.WriteLine(ex);
+			}
+			base.OnExit(e);
+		}
+
 		private void runInitialChecks(ILogger logger)
 		{
 			Task.Factory.StartNew(
