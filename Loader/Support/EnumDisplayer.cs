@@ -77,8 +77,7 @@ namespace Elect.Loader.Support
 		{
 			get
 			{
-				if (_displayValues == null)
-					initializeDisplayValues();
+				initializeDisplayValues();
 
 				_reverseValues =
 					(IDictionary) Activator.CreateInstance(typeof (Dictionary<,>)

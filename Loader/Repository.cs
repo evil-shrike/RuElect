@@ -253,11 +253,11 @@ where p.Provider = @p1 and c.Number = @p2 and c.Region = @p3";
 
 						while (reader.Read())
 						{
-							
+								
 							images.Add(new PollProtocolImage
 							           	{
-											Uri = reader.GetString(1),
-											Image = ((SqlDataReader)reader).GetSqlBinary(2).Value
+											Uri = reader.IsDBNull(2) ? null : reader.GetString(1),
+											Image = reader.IsDBNull(2) ? null : ((SqlDataReader)reader).GetSqlBinary(2).Value
 							           	});
 						}
 						protocol.Images = images;

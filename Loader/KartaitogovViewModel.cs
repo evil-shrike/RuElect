@@ -195,5 +195,6 @@ namespace Elect.Loader
 			log("Downloading of protocol images has completed. Total files: " + countTotal + ", new: " + countNew);
 			return imageFilesMap;
 		}
+
 	}
 }

@@ -33,6 +33,8 @@ namespace Elect.Loader
 		{
 			m_logger = logger;
 			ReloadCommand  = new DelegateCommand(() => reloadAsync());
+			PrevComissionProtocol = new DelegateCommand(onPrevComission);
+			NextComissionProtocol = new DelegateCommand(onNextComission);
 			MaxImageWidth = 100;
 			AuxProtocolColumnsWidth = 0;
 		}
@@ -40,6 +42,9 @@ namespace Elect.Loader
 		public Repository Repository { get; set; }
 
 		public ICommand ReloadCommand { get; set; }
+
+		public ICommand PrevComissionProtocol { get; set; }
+		public ICommand NextComissionProtocol { get; set; }
 
 		internal Task reloadAsync()
 		{
@@ -135,6 +140,40 @@ namespace Elect.Loader
 			}
 		}
 
+		void onPrevComission()
+		{
+			if (Comissions == null || Comissions.Count == 0)
+				return;
+			if (SelectedComission == null)
+				SelectedComission = Comissions[0];
+			else
+			{
+				int idx = Comissions.IndexOf(SelectedComission);
+				if (idx > 0)
+				{
+					idx--;
+					SelectedComission = Comissions[idx];
+				}
+			}
+		}
+		void onNextComission()
+		{
+			if (Comissions == null || Comissions.Count == 0)
+				return;
+			if (SelectedComission == null)
+				SelectedComission = Comissions[0];
+			else
+			{
+				int idx = Comissions.IndexOf(SelectedComission);
+				if (idx < Comissions.Count - 1)
+				{
+					idx++;
+					SelectedComission = Comissions[idx];
+				}
+			}
+
+		}
+
 		private void reloadProtocols(Comission comission)
 		{
 			Tcs = new CancellationTokenSource();
@@ -166,7 +205,6 @@ namespace Elect.Loader
 				raisePropertyChangedEvent("Protocols");
 			}
 		}
-
 
 		public PollProtocol SelectedProtocol
 		{

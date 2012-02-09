@@ -153,25 +153,39 @@
 						<Button Content="Reload" Height="25" Command="{Binding ReloadCommand}" IsEnabled="{Binding IsNotBusy}"
 								HorizontalAlignment="Center"  VerticalAlignment="Top" Width="120" Margin="5" />
 					</StackPanel>
-					
-					<Label Grid.Row="1" Content="Region"></Label>
-					<ComboBox Grid.Row="1" Grid.Column="1" Margin="5" IsEnabled="{Binding IsNotBusy}"
+									
+					<Grid Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Stretch">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition />
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition/>
+							<RowDefinition/>
+						</Grid.RowDefinitions>
+						<Label Content="Region"></Label>
+						<ComboBox Grid.Column="1" Margin="5" IsEnabled="{Binding IsNotBusy}"
 							  ItemsSource="{Binding Regions}"
 							  SelectedItem="{Binding SelectedRegion}"
 							  DisplayMemberPath="Name" MaxWidth="500"
 							  />
-					
-					<Label Grid.Row="2" Content="Comission"></Label>
-					<ComboBox Grid.Row="2" Grid.Column="1" Margin="5" IsEnabled="{Binding IsNotBusy}"
-							  ItemsSource="{Binding Comissions}"
-							  SelectedItem="{Binding SelectedComission}"
-							  DisplayMemberPath="Number" MaxWidth="500"
-							  />
 
-					<CheckBox Grid.Row="3" Grid.Column="1" Content="Show all columns" IsChecked="{Binding ShowAuxColumns}">
+						<Label Grid.Row="1" Content="Comission"></Label>
+						<ComboBox Grid.Row="1" Grid.Column="1" Margin="5" IsEnabled="{Binding IsNotBusy}"
+								  ItemsSource="{Binding Comissions}"
+								  SelectedItem="{Binding SelectedComission}"
+								DisplayMemberPath="Number" MaxWidth="500"
+								/>
+						<Button Grid.Row="1" Grid.Column="2" Content="&lt;" Width="40" Command="{Binding PrevComissionProtocol}"/>
+						<Button Grid.Row="1" Grid.Column="3" Content="&gt;" Width="40" Command="{Binding NextComissionProtocol}"/>
+					</Grid>
+
+					<CheckBox Grid.Row="2" Grid.Column="1" Content="Show all columns" IsChecked="{Binding ShowAuxColumns}">
 						<!-- does't work yet -->
 					</CheckBox>
-					<ListView Grid.Row="4" Grid.ColumnSpan="2" ItemsSource="{Binding Protocols}" SelectionMode="Single"
+					<ListView Grid.Row="3" Grid.ColumnSpan="2" ItemsSource="{Binding Protocols}" SelectionMode="Single"
 							  SelectedItem="{Binding SelectedProtocol, Mode=TwoWay}"
 							  Loader:GridViewColumnVisibilityManager.Enabled="True"
 							  Name="lvProtocols">
@@ -232,9 +246,9 @@
 						</ListView.View>
 					</ListView>
 
-					<Slider Grid.Row="5" Grid.ColumnSpan="2" Minimum="30" Maximum="3000" Orientation="Horizontal" HorizontalContentAlignment="Stretch"
+					<Slider Grid.Row="4" Grid.ColumnSpan="2" Minimum="30" Maximum="3000" Orientation="Horizontal" HorizontalContentAlignment="Stretch"
 							Value="{Binding MaxImageWidth}" />
-					<ListView Grid.Row="6" Grid.ColumnSpan="2" 
+					<ListView Grid.Row="5" Grid.ColumnSpan="2" 
 							  ItemsSource="{Binding SelectedProtocol.Images}" Name="lvImages" MaxHeight="400" ScrollViewer.CanContentScroll="False" >
 						<ListView.ItemsPanel>
 							<ItemsPanelTemplate>
