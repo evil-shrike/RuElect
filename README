@@ -1,0 +1,9 @@
+This project is a client apllication for downloading and analyzing results of Russian elections.
+Currently it supports two sources:
+- kartaitogov.ru ("Golos")
+- RuElect.com
+
+The purpose of the app is allowing to have an offline copy of all "alternative" election protocols.
+
+Russian election on 4th of December 2012 was staged and have many many violations. "Alternative" protocols make this clear.
+"Alternative" protocols are protocols which were brought by independent observers from election comissions.
